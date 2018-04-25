@@ -37,9 +37,29 @@ def filters():
     '''按需求筛选
     :args get请求获取筛选参数 /filter?t=&f=
     : t是筛选类型，f是参数
+    t-> price,stock,storage_time,storage_location
+    f-> t为前三者的时候f为范围值(例如:"100to500"),f为库存地的时候t为地点(例如:"北京")
     '''
     t = request.args.get("t", default=None)
     f = request.args.get("f", default=None)
 
-    # try:
-    #     results = goods
+    try:
+        if t == price or t == stock or t == storage_time:
+            if "to" not in f:
+                return jsonify(code="403", msg="参数错误")
+            else:
+                rangeMin, rangeMax = f.split("to")
+                goodss = Goods.query.filter_by(t >= rangeMin and t <= rangeMax).all()
+        if t == storage_location:
+            if f is None:
+                return jsonify(code="403", msg="参数错误")
+            else:
+                goodss = Goods.query.filter_by(t=f).all()
+        else:
+            return jsonify(code="403", msg="参数错误")
+    except Exception as e:
+        current_app.logger.debug(e)
+        return jsonify(code="500", msg="获取货物列表失败")
+
+    goodss = [goods.to_json() for goods in goodss]
+    return jsonify(code="200", msg="删选成功", count=len(goodss), goodss=goodss)
