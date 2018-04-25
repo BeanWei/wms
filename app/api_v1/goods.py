@@ -2,17 +2,43 @@ from app.models import Goods
 from flask import jsonify,current_app,request
 
 from . import api
+from app import db
 
-@api.route('/')
+@api.route('/', methods=['GET', 'POST'])
 def index():
-    '''首页获取货物列表'''
-    try:
-        goodslist = Goods.query.all()
-    except Exception as e:
-        current_app.logger.debug(e)
-        return jsonify(code="500", msg="获取货物列表失败")
-    goodss = [goods.to_json() for goods in goodslist]
-    return jsonify(code="200", msg="获取货物列表成功", goodss=goodss)
+    if request.method == 'GET':
+        '''首页获取货物列表'''
+        try:
+            goodslist = Goods.query.all()
+        except Exception as e:
+            current_app.logger.debug(e)
+            return jsonify(code="500", msg="获取货物列表失败")
+        goodss = [goods.to_json() for goods in goodslist]
+        return jsonify(code="200", msg="获取货物列表成功", goodss=goodss)
+
+    if request.method == 'POST':
+        '''新增货物'''
+        title = request.values.get("title")
+        price= request.values.get("price")
+        stock = request.values.get("stock")
+        storage_location = request.values.get("storage_location")
+        if not all ([title, price, stock, storage_location]):
+            return jsonify(code="403", msg="参数错误")
+        goods = Goods()
+        goods.title = title
+        goods.price = price
+        goods.stock = stock
+        goods.storage_location = storage_location
+
+        try:
+            db.session.add(goods)
+            db.session.commit()
+        except Exception as e:
+            current_app.logger.debug(e)
+            db.session.rollback()
+            return jsonify(code="500", msg="添加货物失败")
+        
+        return jsonify(code="200", msg="添加货物成功")
 
 @api.route('/search')
 def search():
