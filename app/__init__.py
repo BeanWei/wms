@@ -2,6 +2,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 import flask_whooshalchemyplus
+from flask_whooshalchemyplus import index_all
 from flask import Flask, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -28,8 +29,9 @@ def create_app():
     CORS(app, resources=r'/*')
 
     db.init_app(app)
-    
-    flask_whooshalchemyplus.init_app(app)
+    with app.app_context():
+        index_all(app)
+    # flask_whooshalchemyplus.init_app(app)
 
     from app.api_v1 import api
     app.register_blueprint(api, url_prefix='/api/v1.0')

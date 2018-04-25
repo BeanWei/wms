@@ -1,6 +1,9 @@
 from app.models import Goods
 from flask import jsonify,current_app,request
 
+import re
+import urllib
+
 from . import api
 from app import db
 
@@ -48,7 +51,7 @@ def search():
 
     q = request.args.get("q", default=None)
     try:
-        results = Goods.query.whoosh_search(q, fields=('title')).all()
+        results = Goods.query.whoosh_search(q, or_=True).all()
     except Exception as e:
         current_app.logger.debug(e)
         return jsonify(code="500", msg="获取货物列表失败")
@@ -94,3 +97,47 @@ def filters():
 
     goodss = [goods.to_json() for goods in goodss]
     return jsonify(code="200", msg="删选成功", count=len(goodss), goodss=goodss)
+
+
+
+
+
+'''爬虫获取数据'''
+@api.route('/spiders', methods=['POST'])
+def spiders():
+
+    # eval(str转dict)需要的参数
+    true = True
+    false = False
+    null = None
+
+    qthing = request.values.get('q')
+    api = r'https://s.taobao.com/api?_ksTS=1523179236254_226&callback=jsonp227&ajax=true&m=customized&stats_%27%20\%20%27click=search_radio_all:1&q={}&s=1&imgfile=&initiative_id=staobaoz_20180425&bcoffset=-1%27%20\%20%27&js=1&ie=utf8&rn=d5706a3802513dad625d594a35702a6b'.format(urllib.request.quote(qthing))
+    current_app.logger.debug(api)
+    rep = urllib.request.urlopen(api).read().decode('utf-8')
+    result = eval(re.findall(r'jsonp227(.*?);', rep)[0][1:-1].strip().replace("\n", ""))
+    for r in result['API.CustomizedApi']['itemlist']['auctions']:   
+        #r = result['API.CustomizedApi']['itemlist']['auctions'][0]
+        title = r["raw_title"]#re.sub(r'<[^>]+>', '', r["title"])
+        price = r["view_price"]
+        stock = r["comment_count"]
+        if " " in r["item_loc"]:
+            storage_location = r["item_loc"].split(" ")[-1]
+        else:
+            storage_location = r["item_loc"]
+
+        goods = Goods()
+        goods.title = title
+        goods.price = price
+        goods.stock = stock
+        goods.storage_location = storage_location
+
+        try:
+            db.session.add(goods)
+            db.session.commit()
+        except Exception as e:
+            current_app.logger.debug(e)
+            db.session.rollback()
+            return jsonify(code="500", msg="添加货物失败")
+        
+    return jsonify(code="200", msg="添加货物成功")
