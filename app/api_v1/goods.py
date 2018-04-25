@@ -44,17 +44,22 @@ def filters():
     f = request.args.get("f", default=None)
 
     try:
-        if t == price or t == stock or t == storage_time:
+        if t == "price" or t == "stock" or t == "storage_time":
             if "to" not in f:
                 return jsonify(code="403", msg="参数错误")
             else:
                 rangeMin, rangeMax = f.split("to")
-                goodss = Goods.query.filter_by(t >= rangeMin and t <= rangeMax).all()
-        if t == storage_location:
+                if t == "price":
+                    goodss = Goods.query.filter(Goods.price.between(rangeMin, rangeMax)).all()
+                elif t == "stock":
+                    goodss = Goods.query.filter(Goods.stock.between(rangeMin, rangeMax)).all()
+                elif t == "storage_time":
+                    goodss = Goods.query.filter(Goods.storage_time.between(rangeMin, rangeMax)).all()
+        elif t == "storage_location":
             if f is None:
                 return jsonify(code="403", msg="参数错误")
             else:
-                goodss = Goods.query.filter_by(t=f).all()
+                goodss = Goods.query.filter_by(storage_location=f).all()
         else:
             return jsonify(code="403", msg="参数错误")
     except Exception as e:
